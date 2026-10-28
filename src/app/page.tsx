@@ -1,103 +1,166 @@
-import Image from "next/image";
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { WeatherResponse } from "@/lib/weather";
+import SearchBar from "@/components/SearchBar";
+import Calendar from "@/components/Calendar";
+import DayDetail from "@/components/DayDetail";
+import WeatherIcon from "@/components/WeatherIcon";
+
+const LAST_CITY_KEY = "weather:lastCity";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [data, setData] = useState<WeatherResponse | null>(null);
+  const [selected, setSelected] = useState<string>("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+  const load = useCallback(async (query: URLSearchParams) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/weather?${query}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "取得に失敗しました");
+      setData(json);
+      setSelected(json.daily[0]?.date ?? "");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "取得に失敗しました");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const searchCity = useCallback(
+    (city: string) => {
+      try {
+        localStorage.setItem(LAST_CITY_KEY, city);
+      } catch {}
+      load(new URLSearchParams({ city }));
+    },
+    [load],
+  );
+
+  const locate = () => {
+    if (!navigator.geolocation) {
+      setError("このブラウザは位置情報に対応していません");
+      return;
+    }
+    setLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) =>
+        load(new URLSearchParams({ lat: String(coords.latitude), lon: String(coords.longitude) })),
+      () => {
+        setLoading(false);
+        setError("現在地を取得できませんでした（位置情報の許可を確認してください）");
+      },
+    );
+  };
+
+  // 初回表示：前回見た都市、なければ東京
+  useEffect(() => {
+    let city = "Tokyo,JP";
+    try {
+      city = localStorage.getItem(LAST_CITY_KEY) ?? city;
+    } catch {}
+    load(new URLSearchParams({ city }));
+  }, [load]);
+
+  const day = data?.daily.find((d) => d.date === selected);
+
+  return (
+    <main className="mx-auto max-w-5xl px-4 py-8">
+      <h1 className="mb-6 text-3xl font-bold text-slate-800">☀️ お天気カレンダー</h1>
+
+      <SearchBar loading={loading} onSearch={searchCity} onLocate={locate} />
+
+      {error && <p className="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-rose-700">{error}</p>}
+      {loading && <p className="mt-4 text-slate-600">読み込み中…</p>}
+
+      {data && (
+        <div className={`mt-6 space-y-6 ${loading ? "opacity-50" : ""}`}>
+          {/* 現在の天気 */}
+          <section className="rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 p-6 text-white shadow">
+            <p className="text-sm opacity-90">現在の天気</p>
+            <h2 className="text-2xl font-bold">
+              {data.location.name}
+              <span className="ml-2 text-base font-normal opacity-80">{data.location.country}</span>
+            </h2>
+            <div className="mt-2 flex flex-wrap items-center gap-x-8 gap-y-2">
+              <div className="flex items-center">
+                <WeatherIcon icon={data.current.icon} alt={data.current.description} size={88} />
+                <div>
+                  <p className="text-5xl font-bold">{Math.round(data.current.temp)}°C</p>
+                  <p className="opacity-90">
+                    {data.current.description}・体感 {Math.round(data.current.feelsLike)}°C
+                  </p>
+                </div>
+              </div>
+              <dl className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <dt className="text-xs opacity-80">湿度</dt>
+                  <dd className="text-xl font-semibold">{data.current.humidity}%</dd>
+                </div>
+                <div>
+                  <dt className="text-xs opacity-80">降水確率</dt>
+                  <dd className="text-xl font-semibold">
+                    {data.current.pop === null ? "-" : `${Math.round(data.current.pop * 100)}%`}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs opacity-80">風速</dt>
+                  <dd className="text-xl font-semibold">{data.current.windSpeed.toFixed(1)} m/s</dd>
+                </div>
+              </dl>
+            </div>
+          </section>
+
+          {/* カレンダー + 選択日の詳細 */}
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+            <Calendar
+              key={data.location.lat + "," + data.location.lon}
+              daily={data.daily}
+              selected={selected}
+              onSelect={setSelected}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            {day ? (
+              <DayDetail day={day} />
+            ) : (
+              <div className="rounded-2xl bg-white/80 p-5 text-slate-500 shadow-sm">
+                カレンダーから日付を選んでください
+              </div>
+            )}
+          </div>
+
+          {/* 週間一覧 */}
+          <section className="rounded-2xl bg-white/80 p-4 shadow-sm">
+            <h2 className="mb-3 font-semibold text-slate-800">週間予報</h2>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {data.daily.map((d) => (
+                <button
+                  key={d.date}
+                  onClick={() => setSelected(d.date)}
+                  className={`flex flex-col items-center rounded-lg p-2 text-sm ${
+                    d.date === selected ? "bg-sky-100 ring-2 ring-sky-500" : "bg-slate-50 hover:bg-sky-50"
+                  }`}
+                >
+                  <span className="font-medium text-slate-700">{d.date.slice(5).replace("-", "/")}</span>
+                  <WeatherIcon icon={d.icon} alt={d.description} size={44} />
+                  <span>
+                    <span className="text-rose-500">{Math.round(d.tempMax)}°</span> /{" "}
+                    <span className="text-sky-600">{Math.round(d.tempMin)}°</span>
+                  </span>
+                  <span className="text-xs text-sky-700">☂ {Math.round(d.pop * 100)}%</span>
+                </button>
+              ))}
+            </div>
+          </section>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+      )}
+
+      <footer className="mt-10 text-center text-xs text-slate-500">
+        Weather data © <a className="underline" href="https://openweathermap.org/">OpenWeatherMap</a>
       </footer>
-    </div>
+    </main>
   );
 }

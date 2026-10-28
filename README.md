@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ☀️ お天気カレンダー
 
-## Getting Started
+[OpenWeatherMap](https://openweathermap.org/) の無料 API を使った天気予報アプリです（Next.js + TypeScript + Tailwind CSS）。
 
-First, run the development server:
+## できること
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- 都市名で検索（主要都市はワンクリック）、または **📍現在地** の天気を表示
+- 現在の **気温・体感温度・天気・湿度・降水確率・風速**
+- **カレンダー** で日付を選んで、その日の予報（最高/最低気温・降水確率・湿度・3時間ごとの推移）に切り替え
+- 週間予報の一覧（無料プランのため今日から約5日先まで）
+
+## しくみ
+
+```
+ブラウザ ──fetch──▶ /api/weather（Next.js の Route Handler・サーバー側）──▶ OpenWeatherMap API
+                         └ ここでだけ process.env.OPENWEATHER_API_KEY を読む
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- API キーは環境変数 `OPENWEATHER_API_KEY` で管理し、コードには直書きしていません。
+- 名前に `NEXT_PUBLIC_` を付けていないので、キーはブラウザに送られません（サーバー側でのみ使用）。
+- 使っている API（すべて無料プランで使えます）
+  - Geocoding API `/geo/1.0/direct`：都市名 → 緯度・経度
+  - Current Weather `/data/2.5/weather`：現在の天気
+  - 5 Day / 3 Hour Forecast `/data/2.5/forecast`：予報（降水確率 `pop` を含む）
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| ファイル | 役割 |
+| --- | --- |
+| `src/app/api/weather/route.ts` | API キーを使って OpenWeatherMap を呼ぶサーバー側の処理 |
+| `src/lib/weather.ts` | 3時間ごとの予報を「日ごと」にまとめる変換処理と型 |
+| `src/app/page.tsx` | 画面全体（状態管理・現在の天気） |
+| `src/components/Calendar.tsx` | 日付を選べるカレンダー |
+| `src/components/DayDetail.tsx` | 選んだ日の詳細 |
+| `src/components/SearchBar.tsx` | 都市検索・現在地ボタン |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## ローカルで動かす
 
-## Learn More
+1. [OpenWeatherMap](https://home.openweathermap.org/users/sign_up) に無料登録し、[API keys](https://home.openweathermap.org/api_keys) ページでキーを確認
+   - ※発行直後のキーは、有効になるまで数十分〜数時間かかることがあります
+2. 環境変数ファイルを作成
 
-To learn more about Next.js, take a look at the following resources:
+   ```bash
+   cp .env.example .env.local
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   `.env.local` の `your_api_key_here` を自分のキーに書き換えます（`.env.local` は `.gitignore` 済みなので GitHub には上がりません）。
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. 起動
 
-## Deploy on Vercel
+   ```bash
+   npm install
+   npm run dev
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   http://localhost:3000 を開きます。
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## デプロイ（Vercel）
+
+1. このリポジトリを GitHub に push
+2. [Vercel](https://vercel.com/new) で GitHub リポジトリを Import
+3. **Environment Variables** に `OPENWEATHER_API_KEY` = （自分のキー）を追加して Deploy
+   - 後から追加・変更した場合は、Deployments から **Redeploy** すると反映されます
