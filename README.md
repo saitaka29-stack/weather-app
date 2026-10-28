@@ -1,5 +1,7 @@
 # ☀️ お天気カレンダー
 
+🔗 **公開サイト:** https://weather-calendar-seven.vercel.app/
+
 [OpenWeatherMap](https://openweathermap.org/) の無料 API を使った天気予報アプリです（Next.js + TypeScript + Tailwind CSS）。
 
 ## できること
