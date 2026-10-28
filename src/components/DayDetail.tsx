@@ -1,5 +1,5 @@
 import type { DailyForecast } from "@/lib/weather";
-import { umbrellaAdvice } from "@/lib/advice";
+import { clothingAdvice, umbrellaAdvice } from "@/lib/advice";
 import WeatherIcon from "./WeatherIcon";
 import AdviceCard from "./AdviceCard";
 
@@ -38,6 +38,7 @@ export default function DayDetail({ day }: { day: DailyForecast }) {
 
       <div className="mt-4 grid gap-2">
         <AdviceCard label="傘アドバイス" advice={umbrellaAdvice(day.pop)} />
+        <AdviceCard label="服装アドバイス" advice={clothingAdvice(day.tempMax, day.tempMin)} />
       </div>
 
       <h3 className="mt-5 mb-2 text-sm font-medium text-slate-600">3時間ごとの予報</h3>

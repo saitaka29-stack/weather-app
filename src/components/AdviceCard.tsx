@@ -4,6 +4,7 @@ const TONE_CLASS: Record<Advice["tone"], string> = {
   warn: "border-sky-300 bg-sky-50",
   notice: "border-amber-300 bg-amber-50",
   ok: "border-emerald-300 bg-emerald-50",
+  info: "border-violet-300 bg-violet-50",
 };
 
 export default function AdviceCard({ label, advice }: { label: string; advice: Advice }) {
