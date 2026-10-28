@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { HistoryItem } from "@/lib/history";
 
 const PRESETS = [
   { label: "札幌", q: "Sapporo,JP" },
@@ -13,11 +14,13 @@ const PRESETS = [
 
 type Props = {
   loading: boolean;
+  history: HistoryItem[];
   onSearch: (city: string) => void;
   onLocate: () => void;
+  onClearHistory: () => void;
 };
 
-export default function SearchBar({ loading, onSearch, onLocate }: Props) {
+export default function SearchBar({ loading, history, onSearch, onLocate, onClearHistory }: Props) {
   const [text, setText] = useState("");
 
   return (
@@ -64,6 +67,24 @@ export default function SearchBar({ loading, onSearch, onLocate }: Props) {
           </button>
         ))}
       </div>
+      {history.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-slate-500">🕘 最近の検索</span>
+          {history.map((h) => (
+            <button
+              key={h.label}
+              onClick={() => onSearch(h.query)}
+              disabled={loading}
+              className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-sm text-sky-800 hover:bg-sky-100 disabled:opacity-50"
+            >
+              {h.label}
+            </button>
+          ))}
+          <button onClick={onClearHistory} className="text-xs text-slate-400 underline hover:text-slate-600">
+            履歴を消す
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { WeatherResponse } from "@/lib/weather";
+import { addHistory, readHistory, saveHistory, type HistoryItem } from "@/lib/history";
 import SearchBar from "@/components/SearchBar";
 import Calendar from "@/components/Calendar";
 import DayDetail from "@/components/DayDetail";
@@ -14,8 +15,10 @@ export default function Home() {
   const [selected, setSelected] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
-  const load = useCallback(async (query: URLSearchParams) => {
+  // 取得に成功したらデータを返し、失敗したら null を返す
+  const load = useCallback(async (query: URLSearchParams): Promise<WeatherResponse | null> => {
     setLoading(true);
     setError(null);
     try {
@@ -24,19 +27,23 @@ export default function Home() {
       if (!res.ok) throw new Error(json.error ?? "取得に失敗しました");
       setData(json);
       setSelected(json.daily[0]?.date ?? "");
+      return json;
     } catch (e) {
       setError(e instanceof Error ? e.message : "取得に失敗しました");
+      return null;
     } finally {
       setLoading(false);
     }
   }, []);
 
   const searchCity = useCallback(
-    (city: string) => {
+    async (city: string) => {
+      const result = await load(new URLSearchParams({ city }));
+      if (!result) return; // 見つからなかった都市は履歴に残さない
       try {
         localStorage.setItem(LAST_CITY_KEY, city);
       } catch {}
-      load(new URLSearchParams({ city }));
+      setHistory((h) => addHistory(h, { label: result.location.name, query: city }));
     },
     [load],
   );
@@ -57,8 +64,14 @@ export default function Home() {
     );
   };
 
+  const clearHistory = () => {
+    saveHistory([]);
+    setHistory([]);
+  };
+
   // 初回表示：前回見た都市、なければ東京
   useEffect(() => {
+    setHistory(readHistory());
     let city = "Tokyo,JP";
     try {
       city = localStorage.getItem(LAST_CITY_KEY) ?? city;
@@ -72,7 +85,13 @@ export default function Home() {
     <main className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="mb-6 text-3xl font-bold text-slate-800">☀️ お天気カレンダー</h1>
 
-      <SearchBar loading={loading} onSearch={searchCity} onLocate={locate} />
+      <SearchBar
+        loading={loading}
+        history={history}
+        onSearch={searchCity}
+        onLocate={locate}
+        onClearHistory={clearHistory}
+      />
 
       {error && <p className="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-rose-700">{error}</p>}
       {loading && <p className="mt-4 text-slate-600">読み込み中…</p>}
