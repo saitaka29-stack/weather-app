@@ -1,5 +1,7 @@
 import type { DailyForecast } from "@/lib/weather";
+import { umbrellaAdvice } from "@/lib/advice";
 import WeatherIcon from "./WeatherIcon";
+import AdviceCard from "./AdviceCard";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -33,6 +35,10 @@ export default function DayDetail({ day }: { day: DailyForecast }) {
         <Stat label="湿度（平均）" value={`${day.humidity}%`} />
         <Stat label="最大風速" value={`${day.windSpeed.toFixed(1)} m/s`} />
       </dl>
+
+      <div className="mt-4 grid gap-2">
+        <AdviceCard label="傘アドバイス" advice={umbrellaAdvice(day.pop)} />
+      </div>
 
       <h3 className="mt-5 mb-2 text-sm font-medium text-slate-600">3時間ごとの予報</h3>
       <div className="flex gap-2 overflow-x-auto pb-2">
